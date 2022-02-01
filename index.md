@@ -1,37 +1,95 @@
-## Welcome to GitHub Pages
+<!DOCTYPE html>
+<html>
+<script src='waxjs.js'></script>
 
-You can use the [editor on GitHub](https://github.com/kekeips22/site/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+<body>
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+Below is a basic example of WaxJS functionality. To use this demo, click WAX Login (if you're not automatically logged in), then click Sign Transaction.
 
-### Markdown
+<strong>Auto-login Feature</strong>
+<p>If your blockchain information displays below, you're automatically logged in to WaxJS, and you don't need to click WAX Login. This eliminates the need for multiple clicks and popups!</p>
+<p style="color:#ef9d47" id="autologin"></p>
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+<strong>WAX Login</strong>
+<p>Use this if you're not automatically logged in. Note that if you are auto-logged in, clicking this does not open a popup and the userAccount is still returned.</p>
+<button id="login" onclick=login()>WAX Login</button>
+<p style="color:#ef9d47" id="loginresponse"></p>
+<p>&amp;nbsp;</p>
+<strong>Sign Transaction</strong>
+<p>Click once you're logged in.</p>
+<button id="sign" onclick=sign()>Sign Transaction</button>
+<pre><code id="response">Transaction Response
+</code></pre>
 
-```markdown
-Syntax highlighted code block
 
-# Header 1
-## Header 2
-### Header 3
+<script>
+    const wax = new waxjs.WaxJS({
+        rpcEndpoint: 'https://wax.greymass.com'
+    });
 
-- Bulleted
-- List
+    //automatically check for credentials
+    autoLogin();
 
-1. Numbered
-2. List
+    //checks if autologin is available 
+    async function autoLogin() {
+        let isAutoLoginAvailable = await wax.isAutoLoginAvailable();
+        if (isAutoLoginAvailable) {
+            let userAccount = wax.userAccount;
+            let pubKeys = wax.pubKeys;
+            let str = 'AutoLogin enabled for account: ' + userAccount + '<br/>Active: ' + pubKeys[0] + '<br/>Owner: ' + pubKeys[1]
+            document.getElementById('autologin').insertAdjacentHTML('beforeend', str);
+        }
+        else {
+            document.getElementById('autologin').insertAdjacentHTML('beforeend', 'Not auto-logged in');
+        }
+    }
 
-**Bold** and _Italic_ and `Code` text
+    //normal login. Triggers a popup for non-whitelisted dapps
+    async function login() {
+        try {
+            //if autologged in, this simply returns the userAccount w/no popup
+            let userAccount = await wax.login();
+            let pubKeys = wax.pubKeys;
+            let str = 'Account: ' + userAccount + '<br/>Active: ' + pubKeys[0] + '<br/>Owner: ' + pubKeys[1]
+            document.getElementById('loginresponse').insertAdjacentHTML('beforeend', str);
+        } catch (e) {
+            document.getElementById('loginresponse').append(e.message);
+        }
+    } 
 
-[Link](url) and ![Image](src)
-```
+    async function sign() {
+    if(!wax.api) {
+        return document.getElementById('response').append('* Login first *');
+    }
 
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+    try {
+        const result = await wax.api.transact({
+        actions: [{
+            account: 'eosio',
+            name: 'delegatebw',
+            authorization: [{
+            actor: wax.userAccount,
+            permission: 'active',
+            }],
+            data: {
+            from: wax.userAccount,
+            receiver: wax.userAccount,
+            stake_net_quantity: '0.00000001 WAX',
+            stake_cpu_quantity: '0.00000000 WAX',
+            transfer: false,
+            memo: 'This is a WaxJS/Cloud Wallet Demo.'
+            },
+        }]
+        }, {
+        blocksBehind: 3,
+        expireSeconds: 30
+        });
+        document.getElementById('response').append(JSON.stringify(result, null, 2))
+    } catch(e) {
+        document.getElementById('response').append(e.message);
+    }
+    }
 
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/kekeips22/site/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+</script>
+</body>
+</html>
